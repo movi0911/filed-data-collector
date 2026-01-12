@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geo-Tag Camera System</title>
+    <title>Multi-Cam Geo System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f4f4f9;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -21,87 +23,64 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
         }
 
-        h2 {
-            margin-top: 0;
-            color: #333;
-            text-align: center;
-        }
-
-        label {
-            font-weight: bold;
-            display: block;
-            margin-top: 15px;
-            margin-bottom: 5px;
-            color: #555;
-        }
-
+        h2 { margin-top: 0; color: #333; text-align: center; }
+        
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; color: #555; }
+        
         select, input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-sizing: border-box; /* Fixes padding issues */
-            font-size: 16px;
+            width: 100%; padding: 10px; border: 1px solid #ccc;
+            border-radius: 6px; box-sizing: border-box; font-size: 16px;
         }
 
         button {
-            width: 100%;
-            padding: 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            margin-top: 20px;
-            cursor: pointer;
-            transition: background 0.2s;
+            width: 100%; padding: 12px; border: none; border-radius: 6px;
+            font-size: 16px; margin-top: 20px; cursor: pointer; color: white;
+            font-weight: bold; transition: opacity 0.2s;
+        }
+        
+        .btn-primary { background-color: #007bff; }
+        .btn-success { background-color: #28a745; }
+        .btn-danger { background-color: #dc3545; margin-top: 10px; }
+        .btn-secondary { background-color: #6c757d; }
+
+        .hidden { display: none; }
+
+        #status { margin-top: 15px; text-align: center; font-size: 0.9em; color: #666; }
+
+        .info-box {
+            font-size: 0.85em; color: #555; background: #e9ecef;
+            padding: 10px; border-radius: 6px; word-break: break-all; margin-bottom: 15px;
         }
 
-        button:disabled {
-            background-color: #ccc;
+        /* Photo Gallery Styles */
+        #photo-gallery {
+            display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;
+            max-height: 300px; overflow-y: auto; border: 1px solid #eee; padding: 5px;
+        }
+        
+        .thumb-container {
+            position: relative; width: 80px; height: 80px;
+            border-radius: 4px; overflow: hidden; border: 1px solid #ddd;
+        }
+        
+        .thumb-container img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .count-badge {
+            background: #007bff; color: white; padding: 2px 8px;
+            border-radius: 10px; font-size: 0.8em; margin-bottom: 5px; display: inline-block;
         }
 
-        button:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        #status {
-            margin-top: 15px;
-            text-align: center;
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        #camera-section {
-            margin-top: 20px;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
-
-        canvas {
-            max-width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-
-        .download-btn {
-            background-color: #28a745;
-            margin-top: 10px;
-        }
+        /* Hide the canvas used for processing */
+        canvas { display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Field Data Entry</h2>
+    <h2>Geo-Tag Multi-Cam</h2>
     
     <div id="step1">
         <label for="username">Select User:</label>
@@ -117,38 +96,36 @@
         <label for="formNumber">Form Number:</label>
         <input type="text" id="formNumber" placeholder="Enter Form No.">
 
-        <button id="fetchLocBtn" onclick="fetchLocation()">Get Location & Start</button>
+        <button class="btn-primary" id="fetchLocBtn" onclick="fetchLocation()">Get Location & Start</button>
         <div id="status"></div>
     </div>
 
     <div id="step2" class="hidden">
-        <p><strong>Location Locked!</strong></p>
-        <div style="font-size: 0.85em; color: #555; background: #eee; padding: 10px; border-radius: 6px; word-break: break-all;">
+        <div class="info-box">
             <span id="locDisplay"></span>
         </div>
 
-        <button onclick="downloadTextFile()" style="background-color: #6c757d;">Download Data File (.txt)</button>
-
-        <hr>
-
-        <label for="cameraInput">Take Photo:</label>
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="processImage(this)">
-
-        <canvas id="photoCanvas" class="hidden"></canvas>
+        <label class="btn-secondary" style="text-align:center; padding: 15px; display:block; cursor:pointer;" for="cameraInput">
+            📷 Take Photo / Add Image
+        </label>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="processImage(this)">
         
-        <button id="downloadImgBtn" class="download-btn hidden" onclick="downloadImage()">Save Watermarked Photo</button>
-        <br><br>
-        <button onclick="location.reload()" style="background-color: #dc3545; margin-top:0;">Reset Form</button>
+        <canvas id="processCanvas"></canvas>
+
+        <div style="margin-top: 15px;">
+            <span class="count-badge">Photos: <span id="photoCount">0</span></span>
+            <div id="photo-gallery"></div>
+        </div>
+
+        <button class="btn-success" onclick="generateAndDownloadZip()">Download All as ZIP</button>
+        <button class="btn-danger" onclick="location.reload()">Reset System</button>
     </div>
 </div>
 
 <script>
-    let locationData = {
-        lat: null,
-        lng: null,
-        mapLink: "",
-        timestamp: ""
-    };
+    // Global Storage
+    let locationData = { lat: null, lng: null, mapLink: "", timestamp: "" };
+    let capturedBlobs = []; // Stores { name: "img1.png", blob: blobObject }
 
     function fetchLocation() {
         const user = document.getElementById('username').value;
@@ -156,134 +133,141 @@
         const statusDiv = document.getElementById('status');
         const btn = document.getElementById('fetchLocBtn');
 
-        if (!user || !formNum) {
-            alert("Please select a user and enter a form number.");
-            return;
-        }
+        if (!user || !formNum) { alert("Please select a user and enter a form number."); return; }
 
-        statusDiv.innerText = "Fetching high-accuracy location... Please wait.";
+        statusDiv.innerText = "Acquiring Satellites... Please wait.";
         btn.disabled = true;
 
         if (!navigator.geolocation) {
-            statusDiv.innerText = "Geolocation is not supported by your browser.";
-            btn.disabled = false;
-            return;
+            statusDiv.innerText = "Geolocation not supported.";
+            btn.disabled = false; return;
         }
-
-        // High Accuracy Options
-        const options = {
-            enableHighAccuracy: true, // Key for "101% accuracy" attempt
-            timeout: 10000,
-            maximumAge: 0
-        };
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                // Success
                 locationData.lat = position.coords.latitude;
                 locationData.lng = position.coords.longitude;
-                locationData.mapLink = `https://www.google.com/maps?q=${locationData.lat},${locationData.lng}`;
-                
-                const now = new Date();
-                locationData.timestamp = now.toLocaleString(); // Human readable date time
+                // Google maps search query format
+                locationData.mapLink = `https://www.google.com/maps/search/?api=1&query=${locationData.lat},${locationData.lng}`;
+                locationData.timestamp = new Date().toLocaleString();
 
-                // Switch UI
                 document.getElementById('step1').classList.add('hidden');
                 document.getElementById('step2').classList.remove('hidden');
 
-                // Display Data
-                const display = `Lat: ${locationData.lat}<br>Long: ${locationData.lng}<br><a href="${locationData.mapLink}" target="_blank">Open in Maps</a>`;
-                document.getElementById('locDisplay').innerHTML = display;
+                document.getElementById('locDisplay').innerHTML = 
+                    `<strong>User:</strong> ${user} | <strong>Form:</strong> ${formNum}<br>` +
+                    `<strong>Loc:</strong> ${locationData.lat.toFixed(6)}, ${locationData.lng.toFixed(6)}<br>` + 
+                    `<a href="${locationData.mapLink}" target="_blank">Verify on Map</a>`;
             },
             (error) => {
-                // Error
-                let msg = "Error fetching location.";
-                switch(error.code) {
-                    case error.PERMISSION_DENIED: msg = "User denied the request for Geolocation."; break;
-                    case error.POSITION_UNAVAILABLE: msg = "Location information is unavailable."; break;
-                    case error.TIMEOUT: msg = "The request to get user location timed out."; break;
-                }
-                statusDiv.innerText = msg;
+                statusDiv.innerText = "Error: " + error.message;
                 btn.disabled = false;
             },
-            options
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
-    }
-
-    function downloadTextFile() {
-        const user = document.getElementById('username').value;
-        const formNum = document.getElementById('formNumber').value;
-        
-        const content = `Name: ${user}
-Form Number: ${formNum}
-Location: ${locationData.lat}, ${locationData.lng}
-Maps Link: ${locationData.mapLink}
-Timestamp: ${locationData.timestamp}`;
-
-        const blob = new Blob([content], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${formNum}_${user}_data.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
     }
 
     function processImage(input) {
         if (input.files && input.files[0]) {
+            const file = input.files[0];
             const reader = new FileReader();
             
             reader.onload = function(e) {
                 const img = new Image();
                 img.onload = function() {
-                    const canvas = document.getElementById('photoCanvas');
+                    const canvas = document.getElementById('processCanvas');
                     const ctx = canvas.getContext('2d');
 
-                    // Set canvas size to match image
                     canvas.width = img.width;
                     canvas.height = img.height;
-
-                    // Draw Image
                     ctx.drawImage(img, 0, 0);
 
-                    // --- Watermarking Logic ---
-                    const fontSize = Math.max(20, img.height / 35); // Responsive font size
+                    // WATERMARK LOGIC
+                    const fontSize = Math.max(20, img.height / 35);
                     ctx.font = `bold ${fontSize}px sans-serif`;
-                    ctx.fillStyle = "yellow"; // Text color
-                    ctx.shadowColor = "black"; // Shadow for readability
+                    ctx.fillStyle = "yellow";
+                    ctx.shadowColor = "black";
                     ctx.shadowBlur = 4;
                     ctx.shadowOffsetX = 2;
                     ctx.shadowOffsetY = 2;
 
-                    // Prepare Text
                     const dateStr = new Date().toLocaleString();
                     const locStr = `Lat: ${locationData.lat.toFixed(6)}, Lng: ${locationData.lng.toFixed(6)}`;
-
-                    // Positioning (Bottom Left with padding)
+                    
+                    // Bottom Left Position
                     const x = 20;
                     const y = img.height - 30;
                     const lineHeight = fontSize + 10;
 
-                    // Draw Text
                     ctx.fillText(dateStr, x, y - lineHeight);
                     ctx.fillText(locStr, x, y);
 
-                    // Show Canvas and Button
-                    canvas.classList.remove('hidden');
-                    document.getElementById('downloadImgBtn').classList.remove('hidden');
-                }
+                    // Convert to Blob and Store
+                    canvas.toBlob((blob) => {
+                        const count = capturedBlobs.length + 1;
+                        const filename = `photo_${count}.png`;
+                        
+                        capturedBlobs.push({ name: filename, blob: blob });
+                        
+                        // Update UI
+                        updateGallery(blob);
+                        document.getElementById('photoCount').innerText = capturedBlobs.length;
+                        
+                        // Reset input so same file can be selected again if needed
+                        input.value = ''; 
+                    }, 'image/png');
+                };
                 img.src = e.target.result;
-            }
-            reader.readAsDataURL(input.files[0]);
+            };
+            reader.readAsDataURL(file);
         }
     }
 
-    function downloadImage() {
-        const canvas = document.getElementById('photoCanvas');
-        const link = document.createElement('a');
-        link.download = 'captured_photo_watermarked.png';
-        link.href = canvas.toDataURL();
-        link.click();
+    function updateGallery(blob) {
+        const gallery = document.getElementById('photo-gallery');
+        const url = URL.createObjectURL(blob);
+        const div = document.createElement('div');
+        div.className = 'thumb-container';
+        div.innerHTML = `<img src="${url}">`;
+        gallery.appendChild(div);
+    }
+
+    function generateAndDownloadZip() {
+        if (capturedBlobs.length === 0) {
+            alert("No photos taken yet!");
+            return;
+        }
+
+        const zip = new JSZip();
+        const user = document.getElementById('username').value;
+        const formNum = document.getElementById('formNumber').value;
+
+        // 1. Create Text File
+        const textContent = 
+`User Name: ${user}
+Form Number: ${formNum}
+Timestamp: ${locationData.timestamp}
+Latitude: ${locationData.lat}
+Longitude: ${locationData.lng}
+Google Maps Link: ${locationData.mapLink}
+Total Photos: ${capturedBlobs.length}`;
+        
+        zip.file("data_info.txt", textContent);
+
+        // 2. Add Photos
+        capturedBlobs.forEach(item => {
+            zip.file(item.name, item.blob);
+        });
+
+        // 3. Generate Zip
+        zip.generateAsync({type:"blob"}).then(function(content) {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(content);
+            a.download = `${formNum}_${user}_FieldData.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
     }
 </script>
 
